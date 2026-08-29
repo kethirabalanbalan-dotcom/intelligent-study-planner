@@ -321,17 +321,20 @@ export const StudySessionModal: React.FC<StudySessionModalProps> = ({
               </label>
 
               {subjects.length === 0 ? (
-                <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-300 flex items-center justify-between">
-                  <span>No subjects added yet. Please add a subject first.</span>
+                <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 space-y-2">
+                  <p className="font-semibold text-slate-900 dark:text-white">
+                    Please add a subject before creating a study plan.
+                  </p>
                   <button
                     type="button"
+                    id="modal-add-subject-btn"
                     onClick={() => {
                       onClose();
                       setActiveTab('subjects');
                     }}
-                    className="font-bold underline text-indigo-600 dark:text-indigo-400 hover:opacity-80"
+                    className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs inline-flex items-center gap-1.5"
                   >
-                    Go to Subjects
+                    <Plus className="w-3.5 h-3.5" /> + Add Subject
                   </button>
                 </div>
               ) : (

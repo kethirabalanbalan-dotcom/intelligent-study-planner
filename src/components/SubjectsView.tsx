@@ -140,35 +140,66 @@ export const SubjectsView: React.FC = () => {
       {/* Header with Title & Action CTAs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white font-display">
-            Subject & Examination Management
-          </h2>
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white font-display">
+              My Subjects
+            </h2>
+            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+              {subjects.length} Subject{subjects.length === 1 ? '' : 's'}
+            </span>
+          </div>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
             Add all examination subjects, configure difficulty levels and target dates to calculate priority weights.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <button
-            id="subjects-generate-plan-btn"
-            onClick={generateSchedule}
-            className="px-4 py-2.5 rounded-xl font-bold text-sm bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 transition flex items-center gap-2 shadow-xs"
-          >
-            <Sparkles className="w-4 h-4 text-indigo-400 dark:text-indigo-600" />
-            Generate Study Plan
-          </button>
+          {subjects.length > 0 && (
+            <button
+              id="subjects-generate-plan-btn"
+              onClick={generateSchedule}
+              className="px-4 py-2.5 rounded-xl font-bold text-sm bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 transition flex items-center gap-2 shadow-xs"
+            >
+              <Sparkles className="w-4 h-4 text-indigo-400 dark:text-indigo-600" />
+              Generate Study Plan
+            </button>
+          )}
           <button
             id="subjects-add-btn"
             onClick={openAddModal}
             className="px-4 py-2.5 rounded-xl font-bold text-sm bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 transition flex items-center gap-2"
           >
-            <Plus className="w-4 h-4" /> Add Subject
+            <Plus className="w-4 h-4" /> + Add Subject
           </button>
         </div>
       </div>
 
-      {/* Grid of Subject Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 sm:gap-6">
+      {/* Empty State when no subjects have been added */}
+      {subjects.length === 0 ? (
+        <div className="text-center py-16 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-8 space-y-4 shadow-xs">
+          <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 mx-auto flex items-center justify-center shadow-xs">
+            <BookOpen className="w-8 h-8" />
+          </div>
+          <h3 className="text-xl font-bold font-display text-slate-900 dark:text-white">
+            No subjects added yet.
+          </h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
+            Add your subjects and examination dates to calculate study priorities and schedule your preparation.
+          </p>
+          <div className="pt-2">
+            <button
+              id="subjects-add-first-btn"
+              onClick={openAddModal}
+              className="px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-lg shadow-indigo-600/25 transition inline-flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              + Add Your First Subject
+            </button>
+          </div>
+        </div>
+      ) : (
+        /* Grid of Subject Cards */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 sm:gap-6">
         {subjects.map((sub) => {
           const prio = sub.calculatedPriority;
           const daysLeft = Math.max(0, differenceInDays(sub.examDate, todayStr));
@@ -269,6 +300,7 @@ export const SubjectsView: React.FC = () => {
           );
         })}
       </div>
+      )}
 
       {/* Delete Confirmation Modal (Requirement: ID-based deletion, confirmation prompt, Cancel & Delete buttons) */}
       {subjectToDelete && (
@@ -370,7 +402,7 @@ export const SubjectsView: React.FC = () => {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Mathematics, Physics, Chemistry..."
+                  placeholder="e.g. Artificial Intelligence, Data Structures, Economics..."
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                   required
                 />

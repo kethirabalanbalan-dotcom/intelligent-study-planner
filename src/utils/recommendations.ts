@@ -8,15 +8,28 @@ export function generateSmartRecommendations(
 ): SmartRecommendation[] {
   const recommendations: SmartRecommendation[] = [];
 
-  if (!schedule || schedule.days.length === 0 || subjects.length === 0) {
+  if (subjects.length === 0) {
     recommendations.push({
-      id: 'rec_initial',
+      id: 'rec_no_subjects',
       type: 'tip',
-      title: 'Generate Your Personalized Study Schedule',
-      message: 'Add all your upcoming examination subjects and daily available study hours to calculate intelligent priorities and day-wise sessions.',
-      actionText: 'Go to Subjects',
+      title: 'Personalized Study Recommendations',
+      message: 'Add your subjects and examination dates to receive personalized study recommendations.',
+      actionText: '+ Add Subject',
       actionType: 'navigate',
       targetTab: 'subjects'
+    });
+    return recommendations;
+  }
+
+  if (!schedule || schedule.days.length === 0) {
+    recommendations.push({
+      id: 'rec_no_schedule',
+      type: 'tip',
+      title: 'Create Your Study Plan',
+      message: 'Schedule your daily study sessions with your subjects, topics, and target exam deadlines.',
+      actionText: '+ Add Study Plan',
+      actionType: 'navigate',
+      targetTab: 'study-plan'
     });
     return recommendations;
   }

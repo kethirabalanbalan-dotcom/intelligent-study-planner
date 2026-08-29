@@ -127,7 +127,9 @@ export const DashboardView: React.FC = () => {
             <div className="text-2xl font-bold text-slate-900 dark:text-white font-display">
               {subjects.length}
             </div>
-            <div className="text-[11px] text-slate-400 mt-0.5">Enrolled</div>
+            <div className="text-[11px] text-slate-400 mt-0.5">
+              {subjects.length === 0 ? 'No subjects added' : 'Enrolled'}
+            </div>
           </div>
         </div>
 
@@ -138,11 +140,11 @@ export const DashboardView: React.FC = () => {
             <Calendar className="w-4 h-4 text-rose-500" />
           </div>
           <div className="mt-2">
-            <div className="text-lg font-bold text-slate-900 dark:text-white truncate font-display">
-              {nearestExam ? nearestExam.name : 'None'}
+            <div className="text-base sm:text-lg font-bold text-slate-900 dark:text-white truncate font-display">
+              {nearestExam ? nearestExam.name : 'No upcoming examination'}
             </div>
             <div className="text-[11px] text-rose-600 dark:text-rose-400 font-semibold mt-0.5">
-              {nearestExam ? formatDate(nearestExam.examDate) : 'All complete'}
+              {nearestExam ? formatDate(nearestExam.examDate) : 'Add subjects to start'}
             </div>
           </div>
         </div>
@@ -157,7 +159,9 @@ export const DashboardView: React.FC = () => {
             <div className="text-2xl font-bold text-slate-900 dark:text-white font-display">
               {nearestExam ? `${nearestExam.daysLeft}d` : '-'}
             </div>
-            <div className="text-[11px] text-amber-600 dark:text-amber-400 mt-0.5">Until first exam</div>
+            <div className="text-[11px] text-amber-600 dark:text-amber-400 mt-0.5">
+              {nearestExam ? 'Until first exam' : 'No exam set'}
+            </div>
           </div>
         </div>
 
@@ -171,8 +175,8 @@ export const DashboardView: React.FC = () => {
             <div className="text-2xl font-bold text-slate-900 dark:text-white font-display">
               {schedule ? `${schedule.totalPlannedHours}h` : '0h'}
             </div>
-            <div className="text-[11px] text-slate-400 mt-0.5">
-              {totalSessionsAcrossSchedule} sessions
+            <div className="text-[11px] text-slate-400 mt-0.5 truncate">
+              {totalSessionsAcrossSchedule > 0 ? `${totalSessionsAcrossSchedule} sessions` : 'No study plan created yet'}
             </div>
           </div>
         </div>
@@ -511,59 +515,74 @@ export const DashboardView: React.FC = () => {
             </div>
 
             <div className="space-y-2.5">
-              {subjects
-                .sort(
-                  (a, b) =>
-                    (b.calculatedPriority?.score || 0) -
-                    (a.calculatedPriority?.score || 0)
-                )
-                .map((sub) => {
-                  const prio = sub.calculatedPriority;
-                  const daysLeft = Math.max(0, differenceInDays(sub.examDate, todayStr));
-                  return (
-                    <div
-                      key={sub.id}
-                      onClick={() => setSelectedSubjectModal(sub)}
-                      className="p-3 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-800 cursor-pointer transition flex items-center justify-between gap-3 group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="w-3 h-8 rounded-full"
-                          style={{ backgroundColor: sub.color }}
-                        />
-                        <div>
-                          <div className="font-bold text-sm text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition">
-                            {sub.name}
-                          </div>
-                          <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                            <span className="capitalize">{sub.difficulty}</span>
-                            <span>•</span>
-                            <span>{daysLeft}d left</span>
+              {subjects.length === 0 ? (
+                <div className="text-center py-6 px-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-800 space-y-2">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    No subjects added yet. Add your subjects to see intelligent priority rankings.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('subjects')}
+                    className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs inline-flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> + Add Subject
+                  </button>
+                </div>
+              ) : (
+                subjects
+                  .sort(
+                    (a, b) =>
+                      (b.calculatedPriority?.score || 0) -
+                      (a.calculatedPriority?.score || 0)
+                  )
+                  .map((sub) => {
+                    const prio = sub.calculatedPriority;
+                    const daysLeft = Math.max(0, differenceInDays(sub.examDate, todayStr));
+                    return (
+                      <div
+                        key={sub.id}
+                        onClick={() => setSelectedSubjectModal(sub)}
+                        className="p-3 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-800 cursor-pointer transition flex items-center justify-between gap-3 group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="w-3 h-8 rounded-full"
+                            style={{ backgroundColor: sub.color }}
+                          />
+                          <div>
+                            <div className="font-bold text-sm text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition">
+                              {sub.name}
+                            </div>
+                            <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                              <span className="capitalize">{sub.difficulty}</span>
+                              <span>•</span>
+                              <span>{daysLeft}d left</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="text-right">
-                        {prio && (
-                          <span
-                            className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                              prio.level === 'high'
-                                ? 'bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900'
-                                : prio.level === 'medium'
-                                ? 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-900'
-                                : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900'
-                            }`}
-                          >
-                            {prio.level} Priority
-                          </span>
-                        )}
-                        <div className="text-[10px] text-slate-400 mt-1">
-                          Score: {prio?.score}
+                        <div className="text-right">
+                          {prio && (
+                            <span
+                              className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                prio.level === 'high'
+                                  ? 'bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900'
+                                  : prio.level === 'medium'
+                                  ? 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-900'
+                                  : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900'
+                              }`}
+                            >
+                              {prio.level} Priority
+                            </span>
+                          )}
+                          <div className="text-[10px] text-slate-400 mt-1">
+                            Score: {prio?.score}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+              )}
             </div>
           </div>
 
@@ -577,41 +596,49 @@ export const DashboardView: React.FC = () => {
             </div>
 
             <div className="space-y-2.5">
-              {upcomingExams.map((s) => (
-                <div
-                  key={s.id}
-                  className="p-3 rounded-2xl border border-slate-200/70 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 flex items-center justify-between hover:border-slate-300 dark:hover:border-slate-700 transition"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div
-                      className="w-2.5 h-2.5 rounded-full"
-                      style={{ backgroundColor: s.color }}
-                    />
-                    <div>
-                      <div className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white">
-                        {s.name} Exam
-                      </div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                        {formatDate(s.examDate)}
+              {upcomingExams.length === 0 ? (
+                <div className="text-center py-6 px-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-800">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    No upcoming examinations.
+                  </p>
+                </div>
+              ) : (
+                upcomingExams.map((s) => (
+                  <div
+                    key={s.id}
+                    className="p-3 rounded-2xl border border-slate-200/70 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 flex items-center justify-between hover:border-slate-300 dark:hover:border-slate-700 transition"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className="w-2.5 h-2.5 rounded-full"
+                        style={{ backgroundColor: s.color }}
+                      />
+                      <div>
+                        <div className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white">
+                          {s.name} Exam
+                        </div>
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                          {formatDate(s.examDate)}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="text-right">
-                    <span
-                      className={`text-xs font-bold px-2.5 py-1 rounded-xl ${
-                        s.daysLeft <= 3
-                          ? 'bg-rose-500 text-white animate-pulse'
-                          : s.daysLeft <= 7
-                          ? 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300'
-                          : 'bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300'
-                      }`}
-                    >
-                      {s.daysLeft === 0 ? 'Today!' : `${s.daysLeft} Days Remaining`}
-                    </span>
+                    <div className="text-right">
+                      <span
+                        className={`text-xs font-bold px-2.5 py-1 rounded-xl ${
+                          s.daysLeft <= 3
+                            ? 'bg-rose-500 text-white animate-pulse'
+                            : s.daysLeft <= 7
+                            ? 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300'
+                            : 'bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300'
+                        }`}
+                      >
+                        {s.daysLeft === 0 ? 'Today!' : `${s.daysLeft} Days Remaining`}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>

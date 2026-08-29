@@ -63,79 +63,6 @@ const createInitialProfile = (name: string): StudentProfile => ({
   notificationsEnabled: true
 });
 
-// Default starting subjects for new user
-const INITIAL_SUBJECTS: Omit<Subject, 'id' | 'calculatedPriority'>[] = [
-  {
-    name: 'Mathematics',
-    examDate: '2026-09-15',
-    difficulty: 'hard',
-    confidenceLevel: 35,
-    estimatedTopics: 9,
-    color: '#6366F1', // Indigo
-    topics: [
-      'Algebra & Quadratic Equations',
-      'Calculus & Differentiation',
-      'Integral Calculus & Applications',
-      'Trigonometric Identities & Graphs',
-      'Coordinate Geometry & Vectors',
-      'Probability Distributions & Statistics',
-      'Matrices & Systems of Linear Equations',
-      'Differential Equations & Modeling',
-      'Comprehensive Mathematics Mock Paper'
-    ]
-  },
-  {
-    name: 'Physics',
-    examDate: '2026-09-18',
-    difficulty: 'hard',
-    confidenceLevel: 45,
-    estimatedTopics: 8,
-    color: '#EC4899', // Pink
-    topics: [
-      'Kinematics & Newton Laws of Motion',
-      'Work, Energy & Conservation Principles',
-      'Rotational Dynamics & Gravitation',
-      'Thermodynamics & Heat Cycles',
-      'Oscillations & Mechanical Waves',
-      'Electrostatics & Electric Currents',
-      'Optics & Wave Nature of Light',
-      'Modern Physics & Quantum Formulas'
-    ]
-  },
-  {
-    name: 'Computer Science',
-    examDate: '2026-09-25',
-    difficulty: 'medium',
-    confidenceLevel: 70,
-    estimatedTopics: 6,
-    color: '#3B82F6', // Blue
-    topics: [
-      'Data Structures: Arrays, Stacks, Queues',
-      'Algorithms: Sorting, Searching & Big-O',
-      'Object-Oriented Programming & Principles',
-      'Relational Databases & Complex SQL',
-      'Computer Networks & Protocols',
-      'Operating Systems & Concurrency'
-    ]
-  },
-  {
-    name: 'English',
-    examDate: '2026-09-22',
-    difficulty: 'easy',
-    confidenceLevel: 85,
-    estimatedTopics: 6,
-    color: '#10B981', // Emerald
-    topics: [
-      'Critical Reading Comprehension',
-      'Advanced Grammar & Sentence Structuring',
-      'Persuasive Essay & Thesis Formation',
-      'Literary Devices & Poetry Critique',
-      'Contextual Vocabulary & Idioms',
-      'Timed Past Exam Paper Drill'
-    ]
-  }
-];
-
 interface ToastMessage {
   id: string;
   type: 'success' | 'info' | 'warning' | 'error';
@@ -210,12 +137,7 @@ export const PlannerProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return createInitialProfile(currentUser?.name || 'Student');
   });
 
-  const [subjects, setSubjects] = useState<Subject[]>(() => {
-    return enrichSubjectsWithPriorities(
-      INITIAL_SUBJECTS.map((s, idx) => ({ ...s, id: `sub_${idx + 1}` })),
-      getTodayDateString()
-    );
-  });
+  const [subjects, setSubjects] = useState<Subject[]>([]);
 
   // Schedule is null by default on first load — NO auto-generation on first use!
   const [schedule, setSchedule] = useState<StudySchedule | null>(null);
@@ -227,7 +149,7 @@ export const PlannerProvider: React.FC<{ children: React.ReactNode }> = ({ child
       id: 'notif_welcome',
       type: 'info',
       title: 'Welcome to Intelligent Study Planner',
-      message: "Create your personalized study plan manually by clicking '+ Add Study Plan'.",
+      message: "Add your subjects and create your personalized study plan manually by clicking '+ Add Study Plan'.",
       timestamp: new Date().toISOString(),
       read: false
     }
@@ -287,8 +209,7 @@ export const PlannerProvider: React.FC<{ children: React.ReactNode }> = ({ child
           const stDate = parsed.profile?.startDate || getTodayDateString();
           setSubjects(enrichSubjectsWithPriorities(parsed.subjects, stDate));
         } else {
-          const mappedInit = INITIAL_SUBJECTS.map((s, idx) => ({ ...s, id: `sub_${idx + 1}` }));
-          setSubjects(enrichSubjectsWithPriorities(mappedInit, getTodayDateString()));
+          setSubjects([]);
         }
 
         // Only load schedule if user already created one
@@ -312,7 +233,7 @@ export const PlannerProvider: React.FC<{ children: React.ReactNode }> = ({ child
               id: 'notif_welcome_' + Date.now(),
               type: 'info',
               title: `Welcome, ${currentUser.name}!`,
-              message: "Click '+ Add Study Plan' to create your personalized study sessions.",
+              message: "Start by adding your examination subjects in 'My Subjects' or clicking '+ Add Study Plan'.",
               timestamp: new Date().toISOString(),
               read: false
             }
@@ -324,13 +245,11 @@ export const PlannerProvider: React.FC<{ children: React.ReactNode }> = ({ child
       console.error('Failed to load user study data:', e);
     }
 
-    // Default state for brand new user — DO NOT auto-generate a schedule!
+    // Default state for brand new user — 0 subjects, NO auto-generation!
     const initialProf = createInitialProfile(currentUser.name);
-    const mappedInit = INITIAL_SUBJECTS.map((s, idx) => ({ ...s, id: `sub_${idx + 1}` }));
-    const enrichedSubs = enrichSubjectsWithPriorities(mappedInit, initialProf.startDate);
 
     setProfile(initialProf);
-    setSubjects(enrichedSubs);
+    setSubjects([]); // 0 subjects for new users
     setSchedule(null); // Explicit empty schedule on first use!
     setReplanHistory([]);
     setNotifications([
@@ -338,7 +257,7 @@ export const PlannerProvider: React.FC<{ children: React.ReactNode }> = ({ child
         id: 'notif_welcome_' + Date.now(),
         type: 'info',
         title: `Welcome, ${currentUser.name}!`,
-        message: "Your workspace is ready. Click '+ Add Study Plan' to schedule your first manual study session.",
+        message: "Your workspace is ready. Add your first subject in 'My Subjects' to begin.",
         timestamp: new Date().toISOString(),
         read: false
       }
@@ -1132,6 +1051,10 @@ export const PlannerProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Legacy Generate Schedule (manual trigger only if user explicitly wants auto-generation)
   const generateSchedule = useCallback(() => {
+    if (subjects.length === 0) {
+      addToast('warning', 'No Subjects Found', 'Please add at least one subject before generating a study plan.');
+      return;
+    }
     const newSchedule = generateStudySchedule(profile, subjects);
     setSchedule(newSchedule);
     setSubjects(enrichSubjectsWithPriorities(subjects, profile.startDate));
@@ -1151,11 +1074,9 @@ export const PlannerProvider: React.FC<{ children: React.ReactNode }> = ({ child
       localStorage.removeItem(getStorageKeyForUser(currentUser.id));
     }
     const freshProfile = createInitialProfile(userName);
-    const mappedInit = INITIAL_SUBJECTS.map((s, idx) => ({ ...s, id: `sub_${idx + 1}` }));
-    const freshSubjects = enrichSubjectsWithPriorities(mappedInit, freshProfile.startDate);
 
     setProfile(freshProfile);
-    setSubjects(freshSubjects);
+    setSubjects([]);
     setSchedule(null);
     setReplanHistory([]);
     setNotifications([
@@ -1163,7 +1084,7 @@ export const PlannerProvider: React.FC<{ children: React.ReactNode }> = ({ child
         id: 'notif_reset_' + Date.now(),
         type: 'info',
         title: `Workspace Refreshed for ${userName}`,
-        message: "Your study plan has been reset. Click '+ Add Study Plan' to begin.",
+        message: "Your study workspace has been reset. Add your first subject in 'My Subjects' to begin.",
         timestamp: new Date().toISOString(),
         read: false
       }

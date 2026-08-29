@@ -18,68 +18,16 @@ import {
   parseTimeToMinutes
 } from './dateUtils';
 
-// Default subject topics if none specified
-const DEFAULT_TOPICS: Record<string, string[]> = {
-  mathematics: [
-    'Algebra & Quadratic Equations',
-    'Calculus & Differentiation',
-    'Integral Calculus & Area',
-    'Trigonometric Identities & Graphs',
-    'Coordinate Geometry & Vectors',
-    'Probability & Statistics',
-    'Matrix & Linear Systems',
-    'Differential Equations & Modeling',
-    'Comprehensive Mock Exam & Review'
-  ],
-  physics: [
-    'Kinematics & Newton Laws of Motion',
-    'Work, Energy & Power Principles',
-    'Rotational Dynamics & Gravitation',
-    'Thermodynamics & Heat Transfer',
-    'Oscillations & Mechanical Waves',
-    'Electrostatics & Electric Currents',
-    'Magnetism & Electromagnetic Induction',
-    'Optics & Wave Nature of Light',
-    'Modern Physics & Quantum Formulas',
-    'Full Physics Practice Test & Review'
-  ],
-  english: [
-    'Reading Comprehension & Critical Analysis',
-    'Grammar & Sentence Correction',
-    'Essay Structure & Argumentation',
-    'Literary Devices & Poetry Analysis',
-    'Vocabulary Building & Contextual Clues',
-    'Formal Letter & Analytical Writing',
-    'Past Paper Review & Timed Essay'
-  ],
-  'computer science': [
-    'Data Structures: Arrays, Stacks, Queues',
-    'Algorithms: Sorting, Searching & Complexity',
-    'Object-Oriented Programming & Classes',
-    'Database Systems & SQL Queries',
-    'Computer Networks & Protocols',
-    'Web Architecture & API Design',
-    'Operating System Fundamentals',
-    'Coding Practice & Algorithm Review'
-  ]
-};
-
 function getTopicsForSubject(subject: Subject): string[] {
   if (subject.topics && subject.topics.length > 0) {
     return subject.topics;
-  }
-  const cleanName = subject.name.toLowerCase().trim();
-  for (const [key, topics] of Object.entries(DEFAULT_TOPICS)) {
-    if (cleanName.includes(key) || key.includes(cleanName)) {
-      return topics;
-    }
   }
   const count = subject.estimatedTopics || 6;
   const list: string[] = [];
   for (let i = 1; i <= count; i++) {
     list.push(`${subject.name} - Unit ${i}: Core Concepts & Problem Solving`);
   }
-  list.push(`${subject.name} - Comprehensive Revision & Past Paper Drill`);
+  list.push(`${subject.name} - Comprehensive Revision & Practice Drill`);
   return list;
 }
 
