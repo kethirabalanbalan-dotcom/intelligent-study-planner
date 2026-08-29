@@ -13,9 +13,12 @@ import {
   Upload,
   Check,
   AlertCircle,
-  ShieldAlert
+  ShieldAlert,
+  LogOut,
+  CheckCircle2
 } from 'lucide-react';
 import { usePlanner } from '../context/PlannerContext';
+import { useAuth } from '../context/AuthContext';
 import { DayOfWeek, StudyHoursMode } from '../types';
 
 const DAYS_OF_WEEK: { key: DayOfWeek; label: string }[] = [
@@ -29,6 +32,7 @@ const DAYS_OF_WEEK: { key: DayOfWeek; label: string }[] = [
 ];
 
 export const SettingsView: React.FC = () => {
+  const { logout, currentUser } = useAuth();
   const {
     profile,
     updateProfile,
@@ -53,6 +57,7 @@ export const SettingsView: React.FC = () => {
 
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
 
   const handleSaveSettings = (e: React.FormEvent) => {
     e.preventDefault();
@@ -343,6 +348,40 @@ export const SettingsView: React.FC = () => {
         </div>
       </form>
 
+      {/* Account & Session Management Card */}
+      <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-bold text-slate-900 dark:text-white font-display flex items-center gap-2">
+            <User className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> Account & Active Session
+          </h3>
+          <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+            Active Account
+          </span>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold text-base flex items-center justify-center shadow-xs shrink-0">
+              {profile.name.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <div className="text-sm font-bold text-slate-900 dark:text-white">{profile.name}</div>
+              <div className="text-xs text-slate-500 dark:text-slate-400">{currentUser?.email || 'Logged in user'}</div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            id="settings-logout-btn"
+            onClick={() => setIsLogoutConfirmOpen(true)}
+            className="px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-700 hover:bg-rose-100 hover:text-rose-700 dark:hover:bg-rose-950/60 dark:hover:text-rose-300 text-slate-700 dark:text-slate-200 transition flex items-center gap-2 self-start sm:self-center"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Log Out</span>
+          </button>
+        </div>
+      </div>
+
       {/* Backup & Recovery */}
       <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
         <h3 className="text-base font-bold text-slate-900 dark:text-white font-display">
@@ -447,10 +486,10 @@ export const SettingsView: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
             <h4 className="text-lg font-bold text-rose-600 dark:text-rose-400 font-display">
-              Clear All Data & Restore Demo?
+              Clear All Data & Reset Account?
             </h4>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
-              This will erase all custom subjects, replanning history, and progress records, restoring the initial student workspace for Ari.
+              This will erase all custom subjects, replanning history, and progress records for {profile.name}, restoring a fresh student baseline.
             </p>
             <div className="flex justify-end gap-3 pt-2">
               <button
@@ -470,6 +509,43 @@ export const SettingsView: React.FC = () => {
                 className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 text-white hover:bg-rose-700"
               >
                 Yes, Clear Everything
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Logout Confirmation Dialog */}
+      {isLogoutConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+              <LogOut className="w-6 h-6" />
+            </div>
+            <h4 className="text-lg font-bold text-slate-900 dark:text-white font-display">
+              Log Out of Study Planner?
+            </h4>
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+              Are you sure you want to log out? Your study schedule and progress for <strong>{profile.name}</strong> will remain safely saved in your account.
+            </p>
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsLogoutConfirmOpen(false)}
+                className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                id="settings-modal-logout-confirm-btn"
+                onClick={() => {
+                  setIsLogoutConfirmOpen(false);
+                  logout();
+                }}
+                className="px-4 py-2.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white transition shadow-sm"
+              >
+                Log Out
               </button>
             </div>
           </div>

@@ -1,5 +1,7 @@
 import React from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { PlannerProvider, usePlanner } from './context/PlannerContext';
+import { AuthView } from './components/AuthView';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
 import { MobileNav } from './components/MobileNav';
@@ -57,10 +59,36 @@ const MainLayout: React.FC = () => {
   );
 };
 
-export default function App() {
+const AppContent: React.FC = () => {
+  const { isAuthenticated, isLoadingAuth } = useAuth();
+
+  if (isLoadingAuth) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-200">
+        <div className="w-10 h-10 border-3 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mb-4" />
+        <div className="text-xs font-semibold text-slate-400 tracking-wide uppercase">
+          Loading Study Planner...
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <AuthView />;
+  }
+
   return (
     <PlannerProvider>
       <MainLayout />
     </PlannerProvider>
   );
+};
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
 }
+

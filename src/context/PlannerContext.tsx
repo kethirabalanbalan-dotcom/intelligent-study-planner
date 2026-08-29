@@ -17,11 +17,12 @@ import {
 } from '../utils/scheduler';
 import { generateSmartRecommendations } from '../utils/recommendations';
 import { getTodayDateString, differenceInDays } from '../utils/dateUtils';
+import { useAuth } from './AuthContext';
 
-const STORAGE_KEY = 'intelligent_study_planner_v2';
+const getStorageKeyForUser = (userId: string) => `study_planner_user_data_${userId}`;
 
-const INITIAL_PROFILE: StudentProfile = {
-  name: 'Ari',
+const createInitialProfile = (userName: string = 'Student'): StudentProfile => ({
+  name: userName,
   startDate: '2026-09-01',
   studyHoursMode: 'uniform',
   defaultDailyHours: 4,
@@ -39,7 +40,7 @@ const INITIAL_PROFILE: StudentProfile = {
   startTimeOfDay: '09:00',
   darkMode: false,
   notificationsEnabled: true
-};
+});
 
 const INITIAL_SUBJECTS: Subject[] = [
   {
@@ -170,90 +171,32 @@ interface PlannerContextType {
 const PlannerContext = createContext<PlannerContextType | undefined>(undefined);
 
 export const PlannerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { currentUser, updateCurrentUserProfile } = useAuth();
+
   const [profile, setProfile] = useState<StudentProfile>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.profile) return parsed.profile;
-      }
-    } catch {
-      // ignore
-    }
-    return INITIAL_PROFILE;
+    return createInitialProfile(currentUser?.name || 'Student');
   });
 
   const [subjects, setSubjects] = useState<Subject[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.subjects && parsed.subjects.length > 0) {
-          return enrichSubjectsWithPriorities(parsed.subjects, parsed.profile?.startDate || INITIAL_PROFILE.startDate);
-        }
-      }
-    } catch {
-      // ignore
-    }
-    return enrichSubjectsWithPriorities(INITIAL_SUBJECTS, INITIAL_PROFILE.startDate);
+    return enrichSubjectsWithPriorities(INITIAL_SUBJECTS, '2026-09-01');
   });
 
   const [schedule, setSchedule] = useState<StudySchedule | null>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.schedule) return parsed.schedule;
-      }
-    } catch {
-      // ignore
-    }
-    // Auto-generate initial schedule
-    return generateStudySchedule(INITIAL_PROFILE, INITIAL_SUBJECTS);
+    return generateStudySchedule(createInitialProfile(currentUser?.name || 'Student'), INITIAL_SUBJECTS);
   });
 
-  const [replanHistory, setReplanHistory] = useState<ReplanEvent[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.replanHistory) return parsed.replanHistory;
-      }
-    } catch {
-      // ignore
-    }
-    return [];
-  });
+  const [replanHistory, setReplanHistory] = useState<ReplanEvent[]>([]);
 
-  const [notifications, setNotifications] = useState<AppNotification[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.notifications) return parsed.notifications;
-      }
-    } catch {
-      // ignore
+  const [notifications, setNotifications] = useState<AppNotification[]>([
+    {
+      id: 'notif_welcome',
+      type: 'info',
+      title: 'Welcome to Intelligent Study Planner',
+      message: 'Your personalized examination schedule is ready. Track daily sessions and use Replan whenever needed.',
+      timestamp: new Date().toISOString(),
+      read: false
     }
-    return [
-      {
-        id: 'notif_welcome',
-        type: 'info',
-        title: 'Welcome to Intelligent Study Planner',
-        message: 'Your personalized examination schedule is ready. Track daily sessions and use Replan whenever needed.',
-        timestamp: new Date().toISOString(),
-        read: false
-      },
-      {
-        id: 'notif_prio',
-        type: 'warning',
-        title: 'Mathematics & Physics High Priority',
-        message: 'Both hard subjects have upcoming exams and require consistent morning study blocks.',
-        timestamp: new Date().toISOString(),
-        read: false
-      }
-    ];
-  });
+  ]);
 
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [selectedSubjectModal, setSelectedSubjectModal] = useState<Subject | null>(null);
@@ -261,6 +204,91 @@ export const PlannerProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [isReplanModalOpen, setIsReplanModalOpen] = useState<boolean>(false);
   const [targetMissedDate, setTargetMissedDate] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  // Load user specific data whenever currentUser changes
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const userKey = getStorageKeyForUser(currentUser.id);
+    try {
+      const saved = localStorage.getItem(userKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.profile) {
+          // Always ensure the active display name matches currentUser name unless updated
+          setProfile({ ...parsed.profile, name: parsed.profile.name || currentUser.name });
+        } else {
+          setProfile(createInitialProfile(currentUser.name));
+        }
+
+        if (parsed.subjects && Array.isArray(parsed.subjects)) {
+          const stDate = parsed.profile?.startDate || '2026-09-01';
+          setSubjects(enrichSubjectsWithPriorities(parsed.subjects, stDate));
+        } else {
+          setSubjects(enrichSubjectsWithPriorities(INITIAL_SUBJECTS, '2026-09-01'));
+        }
+
+        if (parsed.schedule) {
+          setSchedule(parsed.schedule);
+        } else {
+          const userProf = parsed.profile || createInitialProfile(currentUser.name);
+          const userSubs = parsed.subjects || INITIAL_SUBJECTS;
+          setSchedule(generateStudySchedule(userProf, userSubs));
+        }
+
+        if (Array.isArray(parsed.replanHistory)) {
+          setReplanHistory(parsed.replanHistory);
+        } else {
+          setReplanHistory([]);
+        }
+
+        if (Array.isArray(parsed.notifications)) {
+          setNotifications(parsed.notifications);
+        } else {
+          setNotifications([
+            {
+              id: 'notif_welcome_' + Date.now(),
+              type: 'info',
+              title: `Welcome, ${currentUser.name}!`,
+              message: 'Your personalized examination schedule is ready. Track daily sessions and use Replan whenever needed.',
+              timestamp: new Date().toISOString(),
+              read: false
+            }
+          ]);
+        }
+        return;
+      }
+    } catch (e) {
+      console.error('Failed to load user study data:', e);
+    }
+
+    // Default state for brand new user
+    const initialProf = createInitialProfile(currentUser.name);
+    const enrichedSubs = enrichSubjectsWithPriorities(INITIAL_SUBJECTS, initialProf.startDate);
+    const initialSched = generateStudySchedule(initialProf, enrichedSubs);
+    setProfile(initialProf);
+    setSubjects(enrichedSubs);
+    setSchedule(initialSched);
+    setReplanHistory([]);
+    setNotifications([
+      {
+        id: 'notif_welcome_' + Date.now(),
+        type: 'info',
+        title: `Welcome, ${currentUser.name}!`,
+        message: 'Your personalized examination schedule is ready. Track daily sessions and use Replan whenever needed.',
+        timestamp: new Date().toISOString(),
+        read: false
+      },
+      {
+        id: 'notif_prio_' + Date.now(),
+        type: 'warning',
+        title: 'High Priority Preparation Ready',
+        message: 'Calculated urgency weights and difficulty rankings for your subjects.',
+        timestamp: new Date().toISOString(),
+        read: false
+      }
+    ]);
+  }, [currentUser]);
 
   // Dark mode effect
   useEffect(() => {
@@ -271,9 +299,11 @@ export const PlannerProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [profile.darkMode]);
 
-  // Persist state to localStorage
+  // Persist user-specific state to localStorage
   useEffect(() => {
+    if (!currentUser) return;
     try {
+      const userKey = getStorageKeyForUser(currentUser.id);
       const state = {
         profile,
         subjects,
@@ -281,11 +311,11 @@ export const PlannerProvider: React.FC<{ children: React.ReactNode }> = ({ child
         replanHistory,
         notifications
       };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      localStorage.setItem(userKey, JSON.stringify(state));
     } catch (e) {
-      console.error('Failed to save to localStorage:', e);
+      console.error('Failed to save user data to localStorage:', e);
     }
-  }, [profile, subjects, schedule, replanHistory, notifications]);
+  }, [currentUser, profile, subjects, schedule, replanHistory, notifications]);
 
   // Toast helper
   const addToast = useCallback((type: ToastMessage['type'], title: string, message: string) => {
@@ -304,10 +334,13 @@ export const PlannerProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const updateProfile = useCallback((updated: Partial<StudentProfile>) => {
     setProfile((prev) => {
       const next = { ...prev, ...updated };
+      if (updated.name && updateCurrentUserProfile) {
+        updateCurrentUserProfile({ name: updated.name });
+      }
       return next;
     });
     addToast('success', 'Settings Updated', 'Your profile and study preferences have been saved.');
-  }, [addToast]);
+  }, [updateCurrentUserProfile, addToast]);
 
   // Add Subject
   const addSubject = useCallback((sub: Omit<Subject, 'id'>) => {
@@ -535,16 +568,32 @@ export const PlannerProvider: React.FC<{ children: React.ReactNode }> = ({ child
     addToast('info', 'Schedule Reset', 'Study plan refreshed to default baseline.');
   }, [generateSchedule, addToast]);
 
-  // Clear All Data
+  // Clear All Data for current user
   const clearAllData = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
-    setProfile(INITIAL_PROFILE);
-    setSubjects(enrichSubjectsWithPriorities(INITIAL_SUBJECTS, INITIAL_PROFILE.startDate));
-    setSchedule(generateStudySchedule(INITIAL_PROFILE, INITIAL_SUBJECTS));
+    const userName = currentUser?.name || 'Student';
+    if (currentUser) {
+      localStorage.removeItem(getStorageKeyForUser(currentUser.id));
+    }
+    const freshProfile = createInitialProfile(userName);
+    const freshSubjects = enrichSubjectsWithPriorities(INITIAL_SUBJECTS, freshProfile.startDate);
+    const freshSchedule = generateStudySchedule(freshProfile, freshSubjects);
+
+    setProfile(freshProfile);
+    setSubjects(freshSubjects);
+    setSchedule(freshSchedule);
     setReplanHistory([]);
-    setNotifications([]);
-    addToast('warning', 'Data Reset', 'All study data restored to initial demo defaults.');
-  }, [addToast]);
+    setNotifications([
+      {
+        id: 'notif_reset_' + Date.now(),
+        type: 'info',
+        title: `Workspace Refreshed for ${userName}`,
+        message: 'Your study plan and subjects have been reset to a fresh baseline.',
+        timestamp: new Date().toISOString(),
+        read: false
+      }
+    ]);
+    addToast('warning', 'Data Reset', 'All study data restored to initial baseline.');
+  }, [currentUser, addToast]);
 
   // Notification actions
   const markNotificationRead = useCallback((id: string) => {

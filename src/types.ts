@@ -4,6 +4,21 @@ export type TaskStatus = 'not_completed' | 'in_progress' | 'completed';
 export type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
 export type StudyHoursMode = 'uniform' | 'custom';
 
+export interface UserAccount {
+  id: string;
+  name: string;
+  email: string;
+  password?: string;
+  avatarColor?: string;
+  createdAt: string;
+}
+
+export interface AuthSession {
+  userId: string;
+  rememberMe: boolean;
+  loggedInAt: string;
+}
+
 export interface Subject {
   id: string;
   name: string;
