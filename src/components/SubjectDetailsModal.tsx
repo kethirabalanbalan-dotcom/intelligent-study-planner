@@ -8,7 +8,7 @@ import {
   AlertCircle,
   Sparkles,
   BookOpen,
-  Award
+  Plus
 } from 'lucide-react';
 import { usePlanner } from '../context/PlannerContext';
 import { formatDate, differenceInDays, getTodayDateString } from '../utils/dateUtils';
@@ -18,6 +18,7 @@ export const SubjectDetailsModal: React.FC = () => {
     selectedSubjectModal,
     setSelectedSubjectModal,
     schedule,
+    openAddSessionModal,
     setActiveTab
   } = usePlanner();
 
@@ -199,24 +200,37 @@ export const SubjectDetailsModal: React.FC = () => {
             )}
 
             {/* Actions */}
-            <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
               <button
-                id="subject-modal-done-btn"
-                onClick={() => setSelectedSubjectModal(null)}
-                className="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-              >
-                Close
-              </button>
-              <button
-                id="subject-modal-view-plan-btn"
+                id="subject-modal-add-session-btn"
                 onClick={() => {
                   setSelectedSubjectModal(null);
-                  setActiveTab('study-plan');
+                  openAddSessionModal(undefined, sub.id);
                 }}
-                className="px-5 py-2 rounded-xl text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 transition flex items-center gap-1.5"
+                className="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 transition flex items-center gap-1.5"
               >
-                <Calendar className="w-4 h-4" /> View in Study Plan
+                <Plus className="w-4 h-4" /> + Add Study Plan for {sub.name}
               </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  id="subject-modal-done-btn"
+                  onClick={() => setSelectedSubjectModal(null)}
+                  className="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                >
+                  Close
+                </button>
+                <button
+                  id="subject-modal-view-plan-btn"
+                  onClick={() => {
+                    setSelectedSubjectModal(null);
+                    setActiveTab('study-plan');
+                  }}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 transition flex items-center gap-1.5"
+                >
+                  <Calendar className="w-4 h-4" /> View Full Plan
+                </button>
+              </div>
             </div>
           </div>
         </motion.div>

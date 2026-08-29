@@ -92,9 +92,41 @@ export function formatTime12h(totalMinutesFromMidnight: number): string {
 
 export function parseTimeToMinutes(timeStr: string): number {
   if (!timeStr) return 9 * 60; // 9 AM default
-  const parts = timeStr.split(':');
+  const trimmed = timeStr.trim();
+  
+  // Check if contains AM/PM
+  if (/am|pm/i.test(trimmed)) {
+    const match = trimmed.match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/i);
+    if (match) {
+      let hours = parseInt(match[1], 10);
+      const minutes = parseInt(match[2], 10);
+      const isPm = match[3].toLowerCase() === 'pm';
+      if (isPm && hours < 12) hours += 12;
+      if (!isPm && hours === 12) hours = 0;
+      return hours * 60 + minutes;
+    }
+  }
+
+  const parts = trimmed.split(':');
   if (parts.length >= 2) {
-    return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+    const hours = parseInt(parts[0], 10) || 0;
+    const minutes = parseInt(parts[1], 10) || 0;
+    return hours * 60 + minutes;
   }
   return 9 * 60;
 }
+
+export function formatMinutesTo24h(totalMinutes: number): string {
+  const mins = Math.max(0, Math.floor(totalMinutes));
+  const h = Math.floor(mins / 60) % 24;
+  const m = mins % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+export function formatTimeDisplay(timeStr: string): string {
+  if (!timeStr) return '';
+  if (/am|pm/i.test(timeStr)) return timeStr;
+  const mins = parseTimeToMinutes(timeStr);
+  return formatTime12h(mins);
+}
+

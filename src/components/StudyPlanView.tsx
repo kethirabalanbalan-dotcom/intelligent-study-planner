@@ -8,25 +8,29 @@ import {
   AlertTriangle,
   Sparkles,
   Filter,
-  Coffee,
+  Plus,
+  Edit2,
+  Trash2,
+  FileText,
   ChevronDown,
   ChevronUp,
   RefreshCw,
-  Award
+  Flag
 } from 'lucide-react';
 import { usePlanner } from '../context/PlannerContext';
 import { formatLongDate, formatDate, getTodayDateString } from '../utils/dateUtils';
-import { TaskStatus } from '../types';
+import { TaskStatus, PriorityLevel } from '../types';
 
 export const StudyPlanView: React.FC = () => {
   const {
     schedule,
     subjects,
     profile,
-    generateSchedule,
     markSessionStatus,
     markDayMissed,
-    setSelectedSubjectModal,
+    deleteManualSession,
+    openAddSessionModal,
+    openEditSessionModal,
     setIsReplanModalOpen
   } = usePlanner();
 
@@ -36,44 +40,77 @@ export const StudyPlanView: React.FC = () => {
 
   const todayStr = getTodayDateString();
 
-  if (!schedule || schedule.days.length === 0) {
+  // Check if any sessions exist across days
+  const totalSessionsCount = schedule?.days?.reduce((sum, d) => sum + d.sessions.length, 0) || 0;
+
+  if (!schedule || totalSessionsCount === 0) {
     return (
-      <div className="text-center py-16 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-8 space-y-4">
-        <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 mx-auto flex items-center justify-center">
-          <Calendar className="w-8 h-8" />
+      <div className="space-y-6 pb-12">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white font-display">
+              Manual Study Plan
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+              Create and manage your customized study sessions for each day.
+            </p>
+          </div>
+          <button
+            id="study-plan-add-top-btn"
+            onClick={() => openAddSessionModal()}
+            className="px-4 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md shadow-indigo-600/20 transition flex items-center justify-center gap-2 self-start sm:self-auto"
+          >
+            <Plus className="w-4 h-4" />
+            + Add Study Plan
+          </button>
         </div>
-        <h3 className="text-xl font-bold font-display text-slate-900 dark:text-white">
-          No Study Plan Generated Yet
-        </h3>
-        <p className="text-sm text-slate-500 max-w-md mx-auto">
-          Generate your personalized day-wise preparation plan based on your subjects, available study hours, and exam dates.
-        </p>
-        <button
-          id="study-plan-generate-first-btn"
-          onClick={generateSchedule}
-          className="px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md shadow-indigo-600/20 transition"
-        >
-          Generate Study Plan
-        </button>
+
+        {/* Empty State */}
+        <div className="text-center py-16 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-8 space-y-4 shadow-xs">
+          <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 mx-auto flex items-center justify-center shadow-xs">
+            <Calendar className="w-8 h-8" />
+          </div>
+          <h3 className="text-xl font-bold font-display text-slate-900 dark:text-white">
+            No study plans have been added yet.
+          </h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
+            Take full control of your preparation. Schedule custom study sessions with your preferred subjects, topics, priority levels, and times.
+          </p>
+          <div className="pt-2">
+            <button
+              id="study-plan-create-first-btn"
+              onClick={() => openAddSessionModal()}
+              className="px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-lg shadow-indigo-600/25 transition inline-flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              + Create Your First Study Plan
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
 
-  // Filter days
-  const filteredDays = schedule.days.filter((day) => {
-    // Subject filter
-    if (selectedSubjectFilter !== 'all') {
-      const hasSubject = day.sessions.some((s) => s.subjectId === selectedSubjectFilter);
-      const hasExam = day.examSubjects.some((s) => s.id === selectedSubjectFilter);
-      if (!hasSubject && !hasExam) return false;
-    }
+  // Filter days that have sessions or match criteria
+  const filteredDays = schedule.days
+    .filter((day) => day.sessions.length > 0 || day.isExamDay)
+    .filter((day) => {
+      // Subject filter
+      if (selectedSubjectFilter !== 'all') {
+        const hasSubject = day.sessions.some((s) => s.subjectId === selectedSubjectFilter);
+        const hasExam = day.examSubjects.some((s) => s.id === selectedSubjectFilter);
+        if (!hasSubject && !hasExam) return false;
+      }
 
-    // Status filter
-    if (filterType === 'completed') return day.progressPercentage === 100;
-    if (filterType === 'missed') return day.isMissed;
-    if (filterType === 'upcoming') return day.date >= todayStr && !day.isMissed && day.progressPercentage < 100;
-    return true;
-  });
+      // Status filter
+      if (filterType === 'completed') return day.progressPercentage === 100 && day.sessions.length > 0;
+      if (filterType === 'missed') return day.isMissed;
+      if (filterType === 'upcoming') {
+        return day.date >= todayStr && !day.isMissed && day.progressPercentage < 100;
+      }
+      return true;
+    });
 
   const toggleExpand = (date: string) => {
     setExpandedDays((prev) => ({ ...prev, [date]: !prev[date] }));
@@ -84,48 +121,48 @@ export const StudyPlanView: React.FC = () => {
       {/* Top Header & Overview */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <h2 className="text-2xl font-bold text-slate-900 dark:text-white font-display">
-              Day-Wise Examination Study Plan
+              Examination Study Plan
             </h2>
             <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300">
-              {schedule.days.length} Days Plan
+              {totalSessionsCount} Planned Session{totalSessionsCount === 1 ? '' : 's'}
             </span>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Intelligently distributed from {formatDate(schedule.startDate)} to {formatDate(schedule.endDate)}.
+            Manually scheduled sessions across {schedule.days.length} active day{schedule.days.length === 1 ? '' : 's'}.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <button
             id="plan-replan-cta-btn"
             onClick={() => setIsReplanModalOpen(true)}
-            className="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 transition flex items-center gap-1.5"
+            className="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 transition flex items-center gap-1.5"
           >
-            <RefreshCw className="w-3.5 h-3.5 text-amber-600" />
+            <RefreshCw className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
             Missed Day / Replan
           </button>
           <button
-            id="plan-refresh-btn"
-            onClick={generateSchedule}
+            id="plan-add-session-btn"
+            onClick={() => openAddSessionModal()}
             className="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 transition flex items-center gap-1.5"
           >
-            <Sparkles className="w-4 h-4" />
-            Regenerate Plan
+            <Plus className="w-4 h-4" />
+            + Add Study Plan
           </button>
         </div>
       </div>
 
-      {/* Insufficient Time Warning Banner (Requirement 13) */}
+      {/* Insufficient Time Warning Banner if applicable */}
       {schedule.isInsufficientTime && (
         <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs sm:text-sm flex items-start gap-3 shadow-xs">
           <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
           <div className="space-y-1">
-            <h4 className="font-bold">Insufficient Preparation Time Warning</h4>
+            <h4 className="font-bold">Preparation Notice</h4>
             <p className="leading-relaxed opacity-95">
               {schedule.timeWarningMessage ||
-                'Warning: Your available study hours may not be sufficient to complete the recommended preparation plan before the examination. Consider increasing your daily study hours.'}
+                'Total planned hours for upcoming sessions may be tight before the examination date. You can add more study sessions at any time.'}
             </p>
           </div>
         </div>
@@ -181,7 +218,7 @@ export const StudyPlanView: React.FC = () => {
       <div className="space-y-4">
         {filteredDays.length === 0 ? (
           <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 text-slate-400 text-sm">
-            No study days match your filter.
+            No study sessions match your filter criteria.
           </div>
         ) : (
           filteredDays.map((day) => {
@@ -229,20 +266,35 @@ export const StudyPlanView: React.FC = () => {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400 mt-1">
-                      <span>Available: <strong>{day.availableHours} hrs</strong></span>
+                      <span>Planned: <strong>{day.allocatedHours} hrs</strong></span>
                       <span>•</span>
-                      <span>Allocated: <strong>{day.allocatedHours} hrs</strong></span>
-                      <span>•</span>
-                      <span className="font-semibold text-slate-700 dark:text-slate-300">
-                        Goal: {day.dailyGoal}
-                      </span>
+                      <span>Sessions: <strong>{day.sessions.length}</strong></span>
+                      {day.dailyGoal && (
+                        <>
+                          <span>•</span>
+                          <span className="font-semibold text-slate-700 dark:text-slate-300 truncate max-w-xs">
+                            Goal: {day.dailyGoal}
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
 
                   {/* Day Progress & Actions */}
-                  <div className="flex items-center gap-3 self-end sm:self-center">
+                  <div className="flex items-center gap-2.5 self-end sm:self-center">
+                    {/* Add session directly to this day */}
+                    <button
+                      id={`plan-add-session-day-${day.date}`}
+                      onClick={() => openAddSessionModal(day.date)}
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 transition flex items-center gap-1"
+                      title="Add study session for this day"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Add Session
+                    </button>
+
                     {/* Progress percentage pill */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 pl-2">
                       <div className="text-right text-xs">
                         <div className="font-bold text-slate-900 dark:text-white">
                           {day.progressPercentage}%
@@ -251,7 +303,7 @@ export const StudyPlanView: React.FC = () => {
                           {day.sessions.filter((s) => s.status === 'completed').length}/{day.sessions.length} done
                         </div>
                       </div>
-                      <div className="w-12 bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                      <div className="w-10 bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                         <div
                           className="bg-emerald-500 h-full rounded-full transition-all"
                           style={{ width: `${day.progressPercentage}%` }}
@@ -260,7 +312,7 @@ export const StudyPlanView: React.FC = () => {
                     </div>
 
                     {/* Mark Day Missed Trigger */}
-                    {!day.isMissed && (
+                    {!day.isMissed && day.sessions.length > 0 && (
                       <button
                         id={`plan-mark-missed-${day.date}`}
                         onClick={() => markDayMissed(day.date)}
@@ -301,52 +353,85 @@ export const StudyPlanView: React.FC = () => {
                     )}
 
                     {day.sessions.length === 0 ? (
-                      <p className="text-xs text-slate-400 py-3 text-center">
-                        No study sessions allocated for this day.
-                      </p>
+                      <div className="text-center py-6 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl space-y-2">
+                        <p className="text-xs text-slate-400">
+                          No study sessions added for this day.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => openAddSessionModal(day.date)}
+                          className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
+                        >
+                          + Add Study Session
+                        </button>
+                      </div>
                     ) : (
-                      day.sessions.map((sess, idx) => {
-                        const nextBreak = day.breaks[idx];
+                      day.sessions.map((sess) => {
+                        const priorityColor =
+                          sess.priority === 'high'
+                            ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border-rose-300 dark:border-rose-800'
+                            : sess.priority === 'low'
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
+                            : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-800';
+
                         return (
-                          <React.Fragment key={sess.id}>
-                            <div
-                              className={`p-3.5 rounded-2xl border transition ${
-                                sess.status === 'completed'
-                                  ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/40'
-                                  : sess.status === 'in_progress'
-                                  ? 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/40'
-                                  : 'bg-slate-50/40 dark:bg-slate-800/40 border-slate-200/80 dark:border-slate-800'
-                              }`}
-                            >
-                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                                <div className="space-y-1 flex-1">
-                                  <div className="flex items-center gap-2 flex-wrap">
+                          <div
+                            key={sess.id}
+                            className={`p-4 rounded-2xl border transition ${
+                              sess.status === 'completed'
+                                ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/40'
+                                : sess.status === 'in_progress'
+                                ? 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/40'
+                                : 'bg-slate-50/50 dark:bg-slate-800/40 border-slate-200/80 dark:border-slate-800'
+                            }`}
+                          >
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                              <div className="space-y-1.5 flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span
+                                    className="px-2.5 py-0.5 rounded-full text-xs font-bold text-white shadow-xs"
+                                    style={{ backgroundColor: sess.subjectColor }}
+                                  >
+                                    {sess.subjectName}
+                                  </span>
+
+                                  {sess.priority && (
                                     <span
-                                      className="px-2.5 py-0.5 rounded-full text-xs font-bold text-white shadow-xs"
-                                      style={{ backgroundColor: sess.subjectColor }}
+                                      className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border flex items-center gap-1 ${priorityColor}`}
                                     >
-                                      {sess.subjectName}
+                                      <Flag className="w-2.5 h-2.5" />
+                                      {sess.priority} Priority
                                     </span>
-                                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                                      <Clock className="w-3.5 h-3.5" />
-                                      {sess.startTime} – {sess.endTime} ({sess.durationMinutes} mins)
+                                  )}
+
+                                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                                    <Clock className="w-3.5 h-3.5" />
+                                    {sess.startTime} – {sess.endTime} ({sess.durationMinutes} mins)
+                                  </span>
+
+                                  {sess.isCarriedForward && (
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300">
+                                      Carried Forward
                                     </span>
-                                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-200/70 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
-                                      {sess.sessionType.replace('_', ' ')}
-                                    </span>
-                                    {sess.isCarriedForward && (
-                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300">
-                                        Carried Forward
-                                      </span>
-                                    )}
-                                  </div>
-                                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-                                    {sess.topic}
-                                  </h4>
+                                  )}
                                 </div>
 
-                                {/* Task Completion Controls */}
-                                <div className="flex items-center gap-1.5 self-end sm:self-center bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+                                <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                                  {sess.topic}
+                                </h4>
+
+                                {sess.notes && (
+                                  <p className="text-xs text-slate-500 dark:text-slate-400 flex items-start gap-1">
+                                    <FileText className="w-3 h-3 shrink-0 mt-0.5" />
+                                    <span>{sess.notes}</span>
+                                  </p>
+                                )}
+                              </div>
+
+                              {/* Task Status & Action Controls */}
+                              <div className="flex items-center gap-2 flex-wrap self-end md:self-center">
+                                {/* Completion Toggle Group */}
+                                <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
                                   <button
                                     id={`plan-status-not-${sess.id}`}
                                     onClick={() => markSessionStatus(day.date, sess.id, 'not_completed')}
@@ -356,7 +441,7 @@ export const StudyPlanView: React.FC = () => {
                                         : 'text-slate-400 hover:text-slate-700'
                                     }`}
                                   >
-                                    <Circle className="w-3.5 h-3.5" /> Not Done
+                                    <Circle className="w-3 h-3" /> Not Done
                                   </button>
                                   <button
                                     id={`plan-status-prog-${sess.id}`}
@@ -367,7 +452,7 @@ export const StudyPlanView: React.FC = () => {
                                         : 'text-slate-400 hover:text-amber-600'
                                     }`}
                                   >
-                                    <PlayCircle className="w-3.5 h-3.5" /> In Progress
+                                    <PlayCircle className="w-3 h-3" /> In Progress
                                   </button>
                                   <button
                                     id={`plan-status-comp-${sess.id}`}
@@ -378,24 +463,30 @@ export const StudyPlanView: React.FC = () => {
                                         : 'text-slate-400 hover:text-emerald-600'
                                     }`}
                                   >
-                                    <CheckCircle2 className="w-3.5 h-3.5" /> Completed
+                                    <CheckCircle2 className="w-3 h-3" /> Completed
                                   </button>
                                 </div>
+
+                                {/* Edit & Delete Buttons */}
+                                <button
+                                  id={`plan-edit-sess-${sess.id}`}
+                                  onClick={() => openEditSessionModal(sess, day.date)}
+                                  className="p-2 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 transition"
+                                  title="Edit Session"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  id={`plan-delete-sess-${sess.id}`}
+                                  onClick={() => deleteManualSession(day.date, sess.id)}
+                                  className="p-2 rounded-xl text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 transition"
+                                  title="Delete Session"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
                               </div>
                             </div>
-
-                            {/* Break period card */}
-                            {nextBreak && (
-                              <div className="flex items-center justify-center gap-2 py-1 text-[11px] text-slate-500 dark:text-slate-400">
-                                <div className="h-px bg-slate-200 dark:bg-slate-800 flex-1" />
-                                <span className="flex items-center gap-1 font-medium bg-slate-100 dark:bg-slate-800 px-3 py-0.5 rounded-full">
-                                  <Coffee className="w-3 h-3 text-amber-500" />
-                                  Break: {nextBreak.startTime} – {nextBreak.endTime} ({nextBreak.durationMinutes}m active rest)
-                                </span>
-                                <div className="h-px bg-slate-200 dark:bg-slate-800 flex-1" />
-                              </div>
-                            )}
-                          </React.Fragment>
+                          </div>
                         );
                       })
                     )}

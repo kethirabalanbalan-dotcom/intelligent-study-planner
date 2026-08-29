@@ -129,10 +129,27 @@ export const ReplanningHistoryView: React.FC = () => {
                 </div>
               )}
 
-              {/* Summary Notes */}
-              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed italic">
-                "{event.summaryNotes}"
-              </p>
+              {/* Changes Applied Breakdown */}
+              {event.changesApplied && event.changesApplied.length > 0 && (
+                <div className="space-y-1.5 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/50 dark:border-slate-800">
+                  <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    Adjustments Applied:
+                  </div>
+                  {event.changesApplied.map((ch, idx) => (
+                    <div key={idx} className="flex items-start gap-2 text-xs text-slate-600 dark:text-slate-300">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                      <span>{ch}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Summary Notes if present */}
+              {event.summaryNotes && (
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed italic">
+                  "{event.summaryNotes}"
+                </p>
+              )}
             </div>
           ))}
         </div>

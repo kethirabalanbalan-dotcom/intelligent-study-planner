@@ -9,7 +9,12 @@ import {
   AlertTriangle,
   Sparkles,
   Coffee,
-  Calendar
+  Calendar,
+  Plus,
+  Edit2,
+  Trash2,
+  FileText,
+  Flag
 } from 'lucide-react';
 import { usePlanner } from '../context/PlannerContext';
 import { formatLongDate } from '../utils/dateUtils';
@@ -21,6 +26,9 @@ export const DayDetailModal: React.FC = () => {
     setSelectedDateForDetail,
     schedule,
     markSessionStatus,
+    deleteManualSession,
+    openAddSessionModal,
+    openEditSessionModal,
     markDayMissed
   } = usePlanner();
 
@@ -62,17 +70,30 @@ export const DayDetailModal: React.FC = () => {
                 )}
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Available: <strong>{day.availableHours} hrs</strong> • Allocated: <strong>{day.allocatedHours} hrs</strong> • Progress: <strong>{day.progressPercentage}%</strong>
+                Planned: <strong>{day.allocatedHours} hrs</strong> • Sessions: <strong>{day.sessions.length}</strong> • Progress: <strong>{day.progressPercentage}%</strong>
               </p>
             </div>
 
-            <button
-              id="day-modal-close-btn"
-              onClick={() => setSelectedDateForDetail(null)}
-              className="p-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 transition"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                id="day-modal-add-btn"
+                onClick={() => {
+                  setSelectedDateForDetail(null);
+                  openAddSessionModal(day.date);
+                }}
+                className="px-2.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition flex items-center gap-1 shadow-xs"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add
+              </button>
+              <button
+                id="day-modal-close-btn"
+                onClick={() => setSelectedDateForDetail(null)}
+                className="p-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           {/* Goal & Exam Alert */}
@@ -97,52 +118,78 @@ export const DayDetailModal: React.FC = () => {
             )}
           </div>
 
-          {/* Sessions & Breaks List */}
+          {/* Sessions List */}
           <div className="p-6 pt-2 overflow-y-auto flex-1 space-y-3">
             {day.sessions.length === 0 ? (
-              <div className="text-center py-8 text-slate-400 text-xs">
-                No study sessions scheduled for this day.
+              <div className="text-center py-8 text-slate-400 text-xs space-y-2">
+                <p>No study sessions scheduled for this day.</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedDateForDetail(null);
+                    openAddSessionModal(day.date);
+                  }}
+                  className="text-indigo-600 dark:text-indigo-400 font-bold hover:underline"
+                >
+                  + Add Study Session
+                </button>
               </div>
             ) : (
-              day.sessions.map((sess, idx) => {
-                const correspondingBreak = day.breaks[idx];
-                return (
-                  <React.Fragment key={sess.id}>
-                    <div
-                      className={`p-3.5 rounded-2xl border transition ${
-                        sess.status === 'completed'
-                          ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/40'
-                          : sess.status === 'in_progress'
-                          ? 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/40'
-                          : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700/80'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 flex-wrap mb-1">
-                            <span
-                              className="px-2.5 py-0.5 rounded-full text-[11px] font-bold text-white shadow-xs"
-                              style={{ backgroundColor: sess.subjectColor }}
-                            >
-                              {sess.subjectName}
-                            </span>
-                            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {sess.startTime} – {sess.endTime} ({sess.durationMinutes}m)
-                            </span>
-                            {sess.isCarriedForward && (
-                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300">
-                                Carried Forward
-                              </span>
-                            )}
-                          </div>
-                          <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
-                            {sess.topic}
-                          </h4>
-                        </div>
+              day.sessions.map((sess) => {
+                const priorityColor =
+                  sess.priority === 'high'
+                    ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border-rose-300 dark:border-rose-800'
+                    : sess.priority === 'low'
+                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
+                    : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-800';
 
-                        {/* Status Toggle Buttons */}
-                        <div className="flex items-center gap-1 shrink-0 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                return (
+                  <div
+                    key={sess.id}
+                    className={`p-3.5 rounded-2xl border transition ${
+                      sess.status === 'completed'
+                        ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/40'
+                        : sess.status === 'in_progress'
+                        ? 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/40'
+                        : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700/80'
+                    }`}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                      <div className="flex-1 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <span
+                            className="px-2.5 py-0.5 rounded-full text-[11px] font-bold text-white shadow-xs"
+                            style={{ backgroundColor: sess.subjectColor }}
+                          >
+                            {sess.subjectName}
+                          </span>
+                          {sess.priority && (
+                            <span
+                              className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border flex items-center gap-1 ${priorityColor}`}
+                            >
+                              <Flag className="w-2.5 h-2.5" />
+                              {sess.priority}
+                            </span>
+                          )}
+                          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {sess.startTime} – {sess.endTime} ({sess.durationMinutes}m)
+                          </span>
+                        </div>
+                        <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                          {sess.topic}
+                        </h4>
+                        {sess.notes && (
+                          <p className="text-xs text-slate-500 dark:text-slate-400 flex items-start gap-1">
+                            <FileText className="w-3 h-3 shrink-0 mt-0.5" />
+                            <span>{sess.notes}</span>
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Controls */}
+                      <div className="flex items-center gap-1.5 self-end sm:self-center">
+                        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
                           <button
                             id={`day-status-not-${sess.id}`}
                             onClick={() => handleStatusChange(sess.id, 'not_completed')}
@@ -153,7 +200,7 @@ export const DayDetailModal: React.FC = () => {
                             }`}
                             title="Not Started"
                           >
-                            <Circle className="w-4 h-4" />
+                            <Circle className="w-3.5 h-3.5" />
                           </button>
                           <button
                             id={`day-status-prog-${sess.id}`}
@@ -165,7 +212,7 @@ export const DayDetailModal: React.FC = () => {
                             }`}
                             title="In Progress"
                           >
-                            <PlayCircle className="w-4 h-4" />
+                            <PlayCircle className="w-3.5 h-3.5" />
                           </button>
                           <button
                             id={`day-status-comp-${sess.id}`}
@@ -177,24 +224,32 @@ export const DayDetailModal: React.FC = () => {
                             }`}
                             title="Completed"
                           >
-                            <CheckCircle2 className="w-4 h-4" />
+                            <CheckCircle2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
+
+                        <button
+                          id={`day-modal-edit-${sess.id}`}
+                          onClick={() => {
+                            setSelectedDateForDetail(null);
+                            openEditSessionModal(sess, day.date);
+                          }}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                          title="Edit Session"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          id={`day-modal-del-${sess.id}`}
+                          onClick={() => deleteManualSession(day.date, sess.id)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                          title="Delete Session"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
-
-                    {/* Break Block if scheduled */}
-                    {correspondingBreak && (
-                      <div className="flex items-center justify-center gap-2 py-1 text-[11px] text-slate-500 dark:text-slate-400">
-                        <div className="h-px bg-slate-200 dark:bg-slate-800 flex-1" />
-                        <span className="flex items-center gap-1 font-medium bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 rounded-full">
-                          <Coffee className="w-3 h-3 text-amber-500" />
-                          Break: {correspondingBreak.startTime} - {correspondingBreak.endTime} ({correspondingBreak.durationMinutes}m)
-                        </span>
-                        <div className="h-px bg-slate-200 dark:bg-slate-800 flex-1" />
-                      </div>
-                    )}
-                  </React.Fragment>
+                  </div>
                 );
               })
             )}

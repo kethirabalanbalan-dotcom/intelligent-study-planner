@@ -13,7 +13,11 @@ import {
   Flame,
   Award,
   RefreshCw,
-  Plus
+  Plus,
+  Edit2,
+  Trash2,
+  Flag,
+  FileText
 } from 'lucide-react';
 import { usePlanner } from '../context/PlannerContext';
 import {
@@ -33,17 +37,28 @@ export const DashboardView: React.FC = () => {
     setActiveTab,
     setSelectedSubjectModal,
     markSessionStatus,
+    deleteManualSession,
+    openAddSessionModal,
+    openEditSessionModal,
     setIsReplanModalOpen,
     setTargetMissedDate
   } = usePlanner();
 
   const todayStr = getTodayDateString();
 
-  // Find today's plan, or fallback to first day if before start date
-  let todayPlan = schedule?.days.find((d) => d.date === todayStr);
-  if (!todayPlan && schedule && schedule.days.length > 0) {
-    todayPlan = schedule.days[0];
-  }
+  // Find today's plan
+  const todayPlan = schedule?.days.find((d) => d.date === todayStr);
+
+  // Overall schedule stats (from manual sessions)
+  const totalSessionsAcrossSchedule =
+    schedule?.days.reduce((acc, d) => acc + d.sessions.length, 0) || 0;
+  const completedSessionsAcrossSchedule =
+    schedule?.days.reduce(
+      (acc, d) => acc + d.sessions.filter((s) => s.status === 'completed').length,
+      0
+    ) || 0;
+  const pendingSessionsAcrossSchedule =
+    totalSessionsAcrossSchedule - completedSessionsAcrossSchedule;
 
   // Sorted upcoming exams
   const upcomingExams = [...subjects]
@@ -58,17 +73,6 @@ export const DashboardView: React.FC = () => {
     .sort((a, b) => a.daysLeft - b.daysLeft);
 
   const nearestExam = upcomingExams[0];
-
-  // Group subjects by priority
-  const highPrioritySubjects = subjects.filter(
-    (s) => s.calculatedPriority?.level === 'high'
-  );
-  const mediumPrioritySubjects = subjects.filter(
-    (s) => s.calculatedPriority?.level === 'medium'
-  );
-  const lowPrioritySubjects = subjects.filter(
-    (s) => s.calculatedPriority?.level === 'low'
-  );
 
   // High priority recommendations
   const topRec = recommendations[0];
@@ -88,17 +92,17 @@ export const DashboardView: React.FC = () => {
               Welcome, {profile.name}! Let's create your personalized study plan.
             </h1>
             <p className="text-sm text-indigo-100/90 leading-relaxed">
-              Prioritizing hard concepts, balancing exam countdowns, and automatically adapting if you miss a study day.
+              Manually schedule and manage your daily study sessions, track exam countdowns, and adapt seamlessly if you miss a study day.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
             <button
-              id="dashboard-study-plan-btn"
-              onClick={() => setActiveTab('study-plan')}
+              id="dashboard-add-session-banner-btn"
+              onClick={() => openAddSessionModal(todayStr)}
               className="px-4 py-2.5 rounded-2xl bg-white text-indigo-900 font-bold text-sm hover:bg-indigo-50 transition shadow-md shadow-black/10 flex items-center gap-2"
             >
-              <Calendar className="w-4 h-4 text-indigo-600" /> View Full Plan
+              <Plus className="w-4 h-4 text-indigo-600" /> + Add Study Plan
             </button>
             <button
               id="dashboard-replan-banner-btn"
@@ -111,7 +115,7 @@ export const DashboardView: React.FC = () => {
         </div>
       </div>
 
-      {/* Overview Cards (Requirement 9) - Bento Grid Tiles */}
+      {/* Overview Cards - Bento Grid Tiles */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
         {/* Total Subjects */}
         <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition">
@@ -157,32 +161,34 @@ export const DashboardView: React.FC = () => {
           </div>
         </div>
 
-        {/* Today's Available Study Hours */}
+        {/* Total Planned Study Time */}
         <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition">
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-            <span className="text-xs font-medium">Available Today</span>
-            <Clock className="w-4 h-4 text-indigo-500" />
-          </div>
-          <div className="mt-2">
-            <div className="text-2xl font-bold text-slate-900 dark:text-white font-display">
-              {todayPlan ? `${todayPlan.availableHours}h` : `${profile.defaultDailyHours}h`}
-            </div>
-            <div className="text-[11px] text-slate-400 mt-0.5">Daily quota</div>
-          </div>
-        </div>
-
-        {/* Today's Planned Study Time */}
-        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-            <span className="text-xs font-medium">Planned Time</span>
+            <span className="text-xs font-medium">Total Planned</span>
             <Clock className="w-4 h-4 text-purple-500" />
           </div>
           <div className="mt-2">
             <div className="text-2xl font-bold text-slate-900 dark:text-white font-display">
-              {todayPlan ? `${todayPlan.allocatedHours}h` : '0h'}
+              {schedule ? `${schedule.totalPlannedHours}h` : '0h'}
             </div>
             <div className="text-[11px] text-slate-400 mt-0.5">
-              {todayPlan?.sessions.length || 0} sessions
+              {totalSessionsAcrossSchedule} sessions
+            </div>
+          </div>
+        </div>
+
+        {/* Completed Sessions */}
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+            <span className="text-xs font-medium">Completed</span>
+            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+          </div>
+          <div className="mt-2">
+            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 font-display">
+              {completedSessionsAcrossSchedule}
+            </div>
+            <div className="text-[11px] text-slate-400 mt-0.5">
+              {pendingSessionsAcrossSchedule} pending
             </div>
           </div>
         </div>
@@ -191,15 +197,15 @@ export const DashboardView: React.FC = () => {
         <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition">
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
             <span className="text-xs font-medium">Overall Progress</span>
-            <TrendingUp className="w-4 h-4 text-emerald-500" />
+            <TrendingUp className="w-4 h-4 text-indigo-500" />
           </div>
           <div className="mt-2">
-            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 font-display">
+            <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 font-display">
               {schedule ? `${schedule.overallProgress}%` : '0%'}
             </div>
             <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full mt-1.5 overflow-hidden">
               <div
-                className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                className="bg-indigo-600 h-full rounded-full transition-all duration-500"
                 style={{ width: `${schedule?.overallProgress || 0}%` }}
               />
             </div>
@@ -207,7 +213,7 @@ export const DashboardView: React.FC = () => {
         </div>
       </div>
 
-      {/* AI Smart Recommendation Highlight */}
+      {/* Smart Recommendation Highlight */}
       {topRec && (
         <div
           className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition ${
@@ -261,19 +267,29 @@ export const DashboardView: React.FC = () => {
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white font-display">
-                    Today's Study Schedule
+                    Today's Study Plan
                   </h3>
                   <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300">
-                    {todayPlan ? formatLongDate(todayPlan.date) : 'Today'}
+                    {formatLongDate(todayStr)}
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Goal: <span className="font-semibold text-slate-700 dark:text-slate-300">{todayPlan?.dailyGoal || 'Follow session plan'}</span>
+                  {todayPlan && todayPlan.sessions.length > 0
+                    ? `Allocated ${todayPlan.allocatedHours} hrs across ${todayPlan.sessions.length} study sessions.`
+                    : 'Manage your daily learning sessions with custom time slots.'}
                 </p>
               </div>
 
-              {todayPlan && (
-                <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 self-start sm:self-auto">
+                <button
+                  id="dashboard-add-today-btn"
+                  onClick={() => openAddSessionModal(todayStr)}
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition flex items-center gap-1 shadow-xs"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  + Add Session
+                </button>
+                {todayPlan && todayPlan.sessions.length > 0 && !todayPlan.isMissed && (
                   <button
                     id="dashboard-mark-today-missed-btn"
                     onClick={() => {
@@ -282,18 +298,18 @@ export const DashboardView: React.FC = () => {
                     }}
                     className="text-xs font-semibold text-amber-600 dark:text-amber-400 hover:text-amber-700 hover:underline flex items-center gap-1"
                   >
-                    <AlertTriangle className="w-3.5 h-3.5" /> I Missed Today's Plan
+                    <AlertTriangle className="w-3.5 h-3.5" /> Missed Day
                   </button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
             {/* Daily Progress Bar */}
-            {todayPlan && (
+            {todayPlan && todayPlan.sessions.length > 0 && (
               <div className="py-3">
                 <div className="flex items-center justify-between text-xs mb-1.5">
                   <span className="font-medium text-slate-600 dark:text-slate-400">
-                    Daily Progress: <strong className="text-slate-900 dark:text-white">{todayPlan.progressPercentage}% Completed</strong>
+                    Today's Progress: <strong className="text-slate-900 dark:text-white">{todayPlan.progressPercentage}% Completed</strong>
                   </span>
                   <span className="text-xs text-slate-400">
                     {todayPlan.sessions.filter((s) => s.status === 'completed').length} of {todayPlan.sessions.length} sessions done
@@ -311,141 +327,170 @@ export const DashboardView: React.FC = () => {
             {/* Sessions Checklist */}
             <div className="space-y-3 mt-3">
               {!todayPlan || todayPlan.sessions.length === 0 ? (
-                <div className="text-center py-10 text-slate-400 text-sm">
-                  No sessions scheduled for today. Take a breather or check upcoming study days!
+                <div className="text-center py-10 px-4 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 mx-auto flex items-center justify-center">
+                    <Calendar className="w-6 h-6" />
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                    No study sessions planned for today
+                  </h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+                    Add a study session to your calendar by selecting a subject, study topic, time slot, and priority.
+                  </p>
+                  <button
+                    id="dash-empty-add-today-btn"
+                    onClick={() => openAddSessionModal(todayStr)}
+                    className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 transition inline-flex items-center gap-1.5"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    + Add Study Session for Today
+                  </button>
                 </div>
               ) : (
-                todayPlan.sessions.map((sess) => (
-                  <div
-                    key={sess.id}
-                    className={`p-4 rounded-2xl border transition-all ${
-                      sess.status === 'completed'
-                        ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/40'
-                        : sess.status === 'in_progress'
-                        ? 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/40'
-                        : 'bg-slate-50/70 dark:bg-slate-800/50 border-slate-200/80 dark:border-slate-700/80'
-                    }`}
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="space-y-1 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span
-                            className="px-2.5 py-0.5 rounded-full text-xs font-bold text-white shadow-xs"
-                            style={{ backgroundColor: sess.subjectColor }}
-                          >
-                            {sess.subjectName}
-                          </span>
-                          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                            <Clock className="w-3.5 h-3.5" />
-                            {sess.startTime} – {sess.endTime} ({sess.durationMinutes}m)
-                          </span>
-                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-200/70 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
-                            {sess.sessionType.replace('_', ' ')}
-                          </span>
-                          {sess.isCarriedForward && (
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300">
-                              Carried Forward
+                todayPlan.sessions.map((sess) => {
+                  const priorityColor =
+                    sess.priority === 'high'
+                      ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border-rose-300 dark:border-rose-800'
+                      : sess.priority === 'low'
+                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
+                      : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-800';
+
+                  return (
+                    <div
+                      key={sess.id}
+                      className={`p-4 rounded-2xl border transition-all ${
+                        sess.status === 'completed'
+                          ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/40'
+                          : sess.status === 'in_progress'
+                          ? 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/40'
+                          : 'bg-slate-50/70 dark:bg-slate-800/50 border-slate-200/80 dark:border-slate-700/80'
+                      }`}
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="space-y-1 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span
+                              className="px-2.5 py-0.5 rounded-full text-xs font-bold text-white shadow-xs"
+                              style={{ backgroundColor: sess.subjectColor }}
+                            >
+                              {sess.subjectName}
                             </span>
+
+                            {sess.priority && (
+                              <span
+                                className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border flex items-center gap-1 ${priorityColor}`}
+                              >
+                                <Flag className="w-2.5 h-2.5" />
+                                {sess.priority}
+                              </span>
+                            )}
+
+                            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                              <Clock className="w-3.5 h-3.5" />
+                              {sess.startTime} – {sess.endTime} ({sess.durationMinutes}m)
+                            </span>
+
+                            {sess.isCarriedForward && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300">
+                                Carried Forward
+                              </span>
+                            )}
+                          </div>
+                          <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                            {sess.topic}
+                          </h4>
+                          {sess.notes && (
+                            <p className="text-xs text-slate-500 dark:text-slate-400 flex items-start gap-1">
+                              <FileText className="w-3 h-3 shrink-0 mt-0.5" />
+                              <span>{sess.notes}</span>
+                            </p>
                           )}
                         </div>
-                        <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-                          {sess.topic}
-                        </h4>
-                      </div>
 
-                      {/* Interactive Task Status Selector */}
-                      <div className="flex items-center gap-1.5 self-end sm:self-center bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
-                        <button
-                          id={`dash-task-not-${sess.id}`}
-                          onClick={() => markSessionStatus(todayPlan.date, sess.id, 'not_completed')}
-                          className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition ${
-                            sess.status === 'not_completed'
-                              ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white'
-                              : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
-                          }`}
-                        >
-                          <Circle className="w-3.5 h-3.5" /> Not Done
-                        </button>
-                        <button
-                          id={`dash-task-prog-${sess.id}`}
-                          onClick={() => markSessionStatus(todayPlan.date, sess.id, 'in_progress')}
-                          className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition ${
-                            sess.status === 'in_progress'
-                              ? 'bg-amber-500 text-white shadow-xs'
-                              : 'text-slate-400 hover:text-amber-600'
-                          }`}
-                        >
-                          <PlayCircle className="w-3.5 h-3.5" /> In Progress
-                        </button>
-                        <button
-                          id={`dash-task-comp-${sess.id}`}
-                          onClick={() => markSessionStatus(todayPlan.date, sess.id, 'completed')}
-                          className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition ${
-                            sess.status === 'completed'
-                              ? 'bg-emerald-500 text-white shadow-xs'
-                              : 'text-slate-400 hover:text-emerald-600'
-                          }`}
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5" /> Completed
-                        </button>
+                        {/* Interactive Task Status Selector & Actions */}
+                        <div className="flex items-center gap-2 flex-wrap self-end sm:self-center">
+                          <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+                            <button
+                              id={`dash-task-not-${sess.id}`}
+                              onClick={() => markSessionStatus(todayPlan.date, sess.id, 'not_completed')}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition ${
+                                sess.status === 'not_completed'
+                                  ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-bold'
+                                  : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+                              }`}
+                            >
+                              <Circle className="w-3.5 h-3.5" /> Not Done
+                            </button>
+                            <button
+                              id={`dash-task-prog-${sess.id}`}
+                              onClick={() => markSessionStatus(todayPlan.date, sess.id, 'in_progress')}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition ${
+                                sess.status === 'in_progress'
+                                  ? 'bg-amber-500 text-white shadow-xs font-bold'
+                                  : 'text-slate-400 hover:text-amber-600'
+                              }`}
+                            >
+                              <PlayCircle className="w-3.5 h-3.5" /> In Progress
+                            </button>
+                            <button
+                              id={`dash-task-comp-${sess.id}`}
+                              onClick={() => markSessionStatus(todayPlan.date, sess.id, 'completed')}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition ${
+                                sess.status === 'completed'
+                                  ? 'bg-emerald-500 text-white shadow-xs font-bold'
+                                  : 'text-slate-400 hover:text-emerald-600'
+                              }`}
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Completed
+                            </button>
+                          </div>
+
+                          <button
+                            id={`dash-edit-sess-${sess.id}`}
+                            onClick={() => openEditSessionModal(sess, todayPlan.date)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-slate-800 transition"
+                            title="Edit session"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            id={`dash-delete-sess-${sess.id}`}
+                            onClick={() => deleteManualSession(todayPlan.date, sess.id)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800 transition"
+                            title="Delete session"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
 
-          {/* Weekly Study Distribution Summary */}
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-xs">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white font-display mb-3">
-              Upcoming 7 Days Snapshot
-            </h3>
-            <div className="grid grid-cols-7 gap-2 text-center">
-              {schedule?.days.slice(0, 7).map((d) => {
-                const isSelected = d.date === todayPlan?.date;
-                const completedSessions = d.sessions.filter((s) => s.status === 'completed').length;
-                return (
-                  <div
-                    key={d.date}
-                    onClick={() => setActiveTab('study-plan')}
-                    className={`p-2.5 rounded-2xl border cursor-pointer transition ${
-                      isSelected
-                        ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-300 dark:border-indigo-800 ring-2 ring-indigo-500/20'
-                        : d.isMissed
-                        ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/50'
-                        : d.isExamDay
-                        ? 'bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900/50'
-                        : 'bg-slate-50/70 dark:bg-slate-800/40 border-slate-200/60 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
-                    }`}
-                  >
-                    <div className="text-[10px] font-bold text-slate-400 uppercase">
-                      {d.dayName.slice(0, 3)}
-                    </div>
-                    <div className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">
-                      {d.date.split('-')[2]}
-                    </div>
-                    <div className="mt-2 text-[10px] font-semibold">
-                      {d.isExamDay ? (
-                        <span className="text-rose-500">Exam</span>
-                      ) : d.isMissed ? (
-                        <span className="text-amber-500">Missed</span>
-                      ) : (
-                        <span className="text-slate-500 dark:text-slate-400">
-                          {completedSessions}/{d.sessions.length}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+          {/* Quick Schedule Navigation CTA */}
+          <div className="p-4 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/60 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-3 text-xs text-indigo-900 dark:text-indigo-200">
+              <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+              <span>Looking for future or past study plans? Check the complete Day-Wise Plan or Interactive Calendar.</span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setActiveTab('study-plan')}
+                className="text-xs font-bold text-indigo-700 dark:text-indigo-300 hover:underline"
+              >
+                View Full Plan →
+              </button>
             </div>
           </div>
         </div>
 
         {/* Right 1 Col: Priority Section & Upcoming Exams Countdown */}
         <div className="space-y-6">
-          {/* Priority Section (Requirement 4 & 9) */}
+          {/* Priority Section */}
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <div>
@@ -453,7 +498,7 @@ export const DashboardView: React.FC = () => {
                   Intelligent Priority Ranking
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Algorithm combines difficulty & exam urgency
+                  Based on subject difficulty & exam urgency
                 </p>
               </div>
               <button

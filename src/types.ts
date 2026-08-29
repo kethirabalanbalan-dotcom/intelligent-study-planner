@@ -59,15 +59,29 @@ export interface StudySession {
   subjectId: string;
   subjectName: string;
   subjectColor: string;
+  date?: string; // YYYY-MM-DD
   startTime: string;
   endTime: string;
   durationMinutes: number;
   status: TaskStatus;
   topic: string;
-  sessionType: 'study' | 'revision' | 'practice_test' | 'mock_review';
+  priority?: PriorityLevel;
+  sessionType?: 'study' | 'revision' | 'practice_test' | 'mock_review';
   completedAt?: string;
   notes?: string;
   isCarriedForward?: boolean;
+}
+
+export interface ManualSessionInput {
+  subjectId: string;
+  date: string; // YYYY-MM-DD
+  startTime: string; // e.g. "18:00" or "06:00 PM"
+  endTime: string; // e.g. "20:00" or "08:00 PM"
+  durationMinutes: number;
+  topic: string;
+  priority: PriorityLevel;
+  notes?: string;
+  status?: TaskStatus;
 }
 
 export interface BreakPeriod {
@@ -114,12 +128,13 @@ export interface ReplanEvent {
   tasksCarriedForward: number;
   prevRemainingDays: number;
   updatedRemainingDays: number;
-  updatedPrioritySubjects: {
+  updatedPrioritySubjects?: {
     subjectName: string;
     priority: PriorityLevel;
     changeDescription: string;
   }[];
-  summaryNotes: string;
+  changesApplied?: string[];
+  summaryNotes?: string;
 }
 
 export interface SmartRecommendation {
